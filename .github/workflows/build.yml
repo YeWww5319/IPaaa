@@ -1,0 +1,35 @@
+name: build-dylib
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build dylib (arm64)
+        run: |
+          mkdir -p out
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          xcrun clang -arch arm64 -isysroot "$SDK" \
+            -miphoneos-version-min=14.0 \
+            -fobjc-arc -dynamiclib \
+            -framework Foundation -framework UIKit \
+            -install_name @rpath/MyTool.dylib \
+            src/*.m -o out/MyTool.dylib
+
+      - name: Ad-hoc sign
+        run: codesign -f -s - out/MyTool.dylib
+
+      - name: Check result
+        run: |
+          file out/MyTool.dylib
+          lipo -info out/MyTool.dylib
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyTool-dylib
+          path: out/MyTool.dylib
